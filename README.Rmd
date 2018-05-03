@@ -1,0 +1,73 @@
+---
+title: "sparkbasics"
+author: "ToveHjelm"
+date: "3 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Connect to spark
+
+```{r}
+library(sparklyr)
+library(dplyr)
+library(nycflights13)
+
+sc <- spark_connect(master = "local")
+```
+
+Copies the data from flights to spark. Now we have an RDD in memory. We could write it do disc, but no need at the moment. 
+
+```{r}
+summary(flights)
+flights_tbl <- copy_to(sc, flights, "flights", overwrite = TRUE)
+```
+
+Good to do data science with Spark, because it will be better at handling big amounts of data faster. 
+
+ft - for cleaning data, working with columns, feature transformation
+ml - machine learning task, algorithms
+sdf - to help us work with spark data frames, joins, import, pivoting etc. 
+spark - working on clusters
+
+When using the functions from sparklyr R tells sparks to do the task, waits for the respons. This means that you might get faster respons for smaller data just using R, but when working with big amounts of data spark is faster. 
+
+```{r}
+library(tidyverse)
+flights_tbl %>% 
+  sdf_partition(training = 0.7, test = 0.3, seed = 888) ->
+  partition
+```
+```{r}
+
+partition$training %>% 
+  ml_linear_regression(arr_delay ~ carrier + origin + dest + hour) ->
+  fit
+
+```
+collect is used to collect the data set to R
+```{r}
+library(ggplot2)
+sdf_predict(fit, partition$test) %>% 
+  sdf_register("scored_data")
+
+tbl(sc,"scored_data") %>% 
+  select(arr_delay, prediction) %>% 
+  collect() ->
+    predicted_vals
+  
+predicted_vals %>%   
+  ggplot(aes(x=arr_delay, y=prediction)) +
+  geom_abline(lty="dashed", col = "red") +
+  geom_jitter(alpha=.5) +
+  coord_fixed(ratio = 1) +
+  labs(
+    x= "Actual arrdelay",
+    y = "Predicted arrdelay",
+    title = "Predicted vs. Actual"
+  )
+```
+A very sad model indeed
