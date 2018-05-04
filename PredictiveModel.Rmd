@@ -62,9 +62,17 @@ head(cleaned)
 
 ```
 
-### 
+### Create the train and test data
 
 ```{r error = TRUE}
+
+cleaned %>% 
+  collect() %>% 
+  subset(criticalFound == 1) ->
+  minority
+
+head(minority)
+
 
 partitions <- cleaned %>%
   sdf_partition(training = 0.75, test = 0.25, seed = 1099)
@@ -74,7 +82,24 @@ fit <- partitions$training %>%
 
 predictedvalues <- sdf_predict(fit, partitions$test)
 
-head(predictedvalues)
+predictedvalues %>% 
+  collect() %>% 
+  tidyr::unnest(rawPrediction, probability) %>% 
+  mutate(rowid=row_number()) %>% 
+  filter(rowid %% 2 == 0) ->
+  unpacked_p
+
+head(unpacked_p)
+
+unpacked_p %>% 
+ggplot(aes(probability, group=criticalFound, fill=as.factor(criticalFound))) +
+         geom_density(alpha = 0.5)
+
+
+```
+
+
+```{r}
 
 ```
 
