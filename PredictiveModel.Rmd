@@ -1,0 +1,80 @@
+---
+title: "Day3-spark"
+author: "ToveHjelm"
+date: "4 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Creating a model in spark
+
+### Getting the data
+
+```{r}
+library(sparklyr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(DataExplorer)
+library(forcats)
+
+dat_object <- readRDS("DATA/xmat.Rds")
+
+
+```
+
+### Using Data Explorer for some EDA
+
+```{r eval = FALSE}
+DataExplorer::GenerateReport(dat)
+```
+### Creating a connection to Spark
+```{r}
+sc <- spark_connect("local")
+dat <- copy_to(sc, dat_object, "dat_spark", overwrite = TRUE)  
+```
+
+### Some transformation
+However, it seems like you can't use factors in Spark, so we'll use doubles for those categories where that is possible. 
+
+```{r error = TRUE}
+#dat %>% 
+#mutate(criticalFound = spark_apply(f=as.factor, columns = c('criticalFound'))) ->
+  #cleaned
+
+#dat %>% 
+#mutate(criticalFound = forcats::as_factor(dat$criticalFound)) ->
+  #cleaned
+
+#dat %>% 
+#mutate(criticalFound = as.integer(criticalFound)) ->
+  #cleaned
+
+dat %>% 
+mutate(criticalFound = as.numeric(criticalFound)) %>% 
+  mutate(ageAtInspection = as.numeric(ageAtInspection)) ->
+  cleaned
+
+head(cleaned)
+
+```
+
+### 
+
+```{r error = TRUE}
+
+partitions <- cleaned %>%
+  sdf_partition(training = 0.75, test = 0.25, seed = 1099)
+
+fit <- partitions$training %>%
+  ml_logistic_regression(criticalFound~.)
+
+predictedvalues <- sdf_predict(fit, partitions$test)
+
+head(predictedvalues)
+
+```
+

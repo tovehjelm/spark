@@ -71,3 +71,11 @@ predicted_vals %>%
   )
 ```
 A very sad model indeed
+
+
+# Some options for working with spark result sets
+
+- Use lazy execution to construct statements and get the results on the fly
+- Use sdf_register() to put the results into a spark table (update)
+- Use sdf_persist() to force any pending calcs to happen - doesn't necessarily persist in a nicely named object
+- Use collect() to perform the calcs and bring the results into an R data.frame
